@@ -17,12 +17,12 @@ jobs:
     name: Knowledge tree (format + nothing deleted)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
       - name: Check knowledge
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -35,7 +35,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: gitleaks
@@ -53,7 +53,7 @@ jobs:
     name: Dependency vulnerabilities (osv-scanner)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: osv-scanner
         run: |
           set +e
@@ -67,7 +67,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # TODO: add the language setup step (actions/setup-node, actions/setup-python, ...).
       - name: Install
         run: echo "TODO — replace with the project's install command" && exit 1
