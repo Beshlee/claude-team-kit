@@ -102,7 +102,18 @@ function emit(obj) {
   process.stdout.write(JSON.stringify(obj));
 }
 
-function run(main) {
+// Kill switch, for when a hook gets in someone's way and they need to keep
+// working: CLAUDE_TEAM_KIT_DISABLE=1 (or true/all) turns every hook off;
+// a comma list such as "guard,stop-gate" turns off only those.
+function isDisabled(name, env = process.env) {
+  const v = String(env.CLAUDE_TEAM_KIT_DISABLE || '').trim().toLowerCase();
+  if (!v || v === '0' || v === 'false') return false;
+  if (v === '1' || v === 'true' || v === 'all') return true;
+  return v.split(/[\s,]+/).includes(String(name).toLowerCase());
+}
+
+function run(name, main) {
+  if (isDisabled(name)) process.exit(0);
   try {
     main(readStdin());
   } catch (e) {
@@ -113,5 +124,5 @@ function run(main) {
 
 module.exports = {
   DEFAULTS, readStdin, projectDir, loadConfig, toPosix, relPath,
-  globToRegExp, matchesAny, readFileSafe, emit, run,
+  globToRegExp, matchesAny, readFileSafe, emit, run, isDisabled,
 };

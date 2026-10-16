@@ -73,7 +73,7 @@ function evaluate(input, files) {
 }
 
 if (require.main === module) {
-  lib.run((input) => {
+  lib.run('stop-gate', (input) => {
     const dir = lib.projectDir(input);
     const reason = evaluate(input, changedFiles(dir));
     if (reason) lib.emit({ decision: 'block', reason });

@@ -15,7 +15,9 @@ this is the *how*.
    `CLAUDE.md`, the real `sourceGlobs`/`testGlobs`, and — most important —
    the list of **protected paths and invariants** (which flows must never
    break, and which test proves each one).
-4. Merge. From now on every teammate's session loads the same rules.
+4. Merge. From now on every teammate's session loads the same rules, and
+   anyone opening the project in Claude Code is offered the kit (the
+   project's `.claude/settings.json` enables it).
 
 ## 2. Where knowledge goes
 
@@ -65,7 +67,15 @@ entries, wait for your confirmation, then **move** them to
 deleted; the guard hook blocks deletion of memory files outright. To bring
 something back: "Restore DONT-007 from the archive."
 
-## 5. When Claude broke something
+## 5. When a hook is wrong
+
+If a guard rule blocks something legitimate: for a one-off, start Claude
+Code with `CLAUDE_TEAM_KIT_DISABLE=guard` (or `=1` for all hooks). For a
+rule that is noisy in this project, add it to `codeScan.ignoreRules` /
+`secretScan.allowPatterns` in `.claude/guardrails.json` through a PR.
+Either way, report it — false positives erode trust in every rule.
+
+## 6. When Claude broke something
 
 1. Stop new work. Ask Claude to identify the step that broke it (the
    ledger's "Done" list and `git diff` make this quick) and revert to the
@@ -74,7 +84,7 @@ something back: "Restore DONT-007 from the archive."
 3. Record a `LESSON-` entry and the rule it produced (DONT or invariant +
    protected path), so the next session — anyone's — knows.
 
-## 6. Security and tests — what is enforced vs. expected
+## 7. Security and tests — what is enforced vs. expected
 
 | Enforced by hooks | Expected (checked by reviewers) |
 |---|---|
@@ -88,7 +98,7 @@ Also keep the project's own CI as the final gate: tests, lint, secret
 scanning (e.g. gitleaks), and dependency audit on every PR. Hooks catch
 mistakes early on one developer's machine; CI catches them for everyone.
 
-## 7. Tips that make Claude more reliable on a team
+## 8. Tips that make Claude more reliable on a team
 
 - Give one task per session; start a fresh session (with the ledger)
   rather than piling unrelated work into a long one.

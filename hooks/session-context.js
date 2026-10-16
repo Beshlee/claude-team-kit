@@ -65,7 +65,7 @@ function build(input) {
 }
 
 if (require.main === module) {
-  lib.run((input) => {
+  lib.run('session-context', (input) => {
     const text = build(input);
     if (!text) return;
     lib.emit({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } });

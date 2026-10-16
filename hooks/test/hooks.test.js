@@ -245,3 +245,48 @@ test('changedFiles reads modified and untracked files from a real git repo', () 
   assert.deepEqual(files, ['src/a.js', 'src/new.js']);
   assert.equal(stopGate.changedFiles(tmpProject(null)), null);
 });
+
+test('memory-deletion guard matches path arguments, not substrings', () => {
+  const dir = tmpProject(null);
+  const cases = {
+    // unrelated paths that merely contain "memory" / "knowledge" / "CLAUDE.md"
+    'rm -rf src/memory/cache': null,
+    'rm build/memory/leak.log': null,
+    'rm -rf docs/knowledge-old-export.zip': null,
+    'rm -rf dist && cat CLAUDE.md': null,
+    'cd docs && rm knowledge-tmp.txt': null,
+    // appending and stderr redirects are fine
+    'echo hi >> docs/knowledge/INDEX.md': null,
+    'npm test 2>&1 | tee out.log': null,
+    // real memory deletion / truncation
+    'rm ~/.claude/projects/x/memory/a.md': 'deny',
+    'rm -r docs/knowledge': 'deny',
+    'sudo rm -rf .claude/rules': 'deny',
+    'Remove-Item -Recurse C:\\Users\\k\\.claude\\projects\\p\\memory': 'deny',
+    'echo x > CLAUDE.md': 'deny',
+    'rm MEMORY.md': 'deny',
+    // shell overwrite bypasses the shrink check → ask
+    'Set-Content docs/knowledge/INDEX.md ""': 'ask',
+  };
+  for (const [cmd, expected] of Object.entries(cases)) {
+    assert.equal(run('Bash', { command: cmd }, dir)?.decision ?? null, expected, cmd);
+  }
+});
+
+test('kill switch: CLAUDE_TEAM_KIT_DISABLE turns all or named hooks off', () => {
+  assert.equal(lib.isDisabled('guard', {}), false);
+  assert.equal(lib.isDisabled('guard', { CLAUDE_TEAM_KIT_DISABLE: '0' }), false);
+  for (const v of ['1', 'true', 'ALL']) assert.equal(lib.isDisabled('guard', { CLAUDE_TEAM_KIT_DISABLE: v }), true, v);
+  assert.equal(lib.isDisabled('guard', { CLAUDE_TEAM_KIT_DISABLE: 'guard, stop-gate' }), true);
+  assert.equal(lib.isDisabled('session-context', { CLAUDE_TEAM_KIT_DISABLE: 'guard,stop-gate' }), false);
+
+  // end-to-end: a command that would be denied passes silently when disabled
+  const dir = tmpProject(null);
+  const input = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'rm docs/knowledge/INDEX.md' }, cwd: dir });
+  const script = path.join(__dirname, '..', 'guard.js');
+  const off = spawnSync(process.execPath, [script], { input, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CLAUDE_TEAM_KIT_DISABLE: 'guard' } });
+  assert.equal(off.status, 0);
+  assert.equal(off.stdout, '');
+  const on = spawnSync(process.execPath, [script], { input, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CLAUDE_TEAM_KIT_DISABLE: 'stop-gate' } });
+  assert.match(on.stdout, /"permissionDecision":"deny"/);
+});

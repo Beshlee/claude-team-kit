@@ -108,3 +108,30 @@ test('every referenced agent, skill, and command exists', () => {
   }
   assert.deepEqual(problems, []);
 });
+
+test('version is the same in all manifests and has a changelog entry', () => {
+  const read = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  const plugin = read('.claude-plugin/plugin.json').version;
+  const market = read('.claude-plugin/marketplace.json').plugins.find((p) => p.name === 'claude-team-kit').version;
+  const pkg = read('package.json').version;
+  assert.equal(market, plugin, 'marketplace.json version differs from plugin.json');
+  assert.equal(pkg, plugin, 'package.json version differs from plugin.json');
+  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  assert.match(changelog, /^## \[Unreleased\]/m, 'CHANGELOG.md needs an Unreleased section');
+  assert.ok(changelog.includes(`## [${plugin}]`), `CHANGELOG.md has no entry for ${plugin}`);
+});
+
+test('license is consistent', () => {
+  const read = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  const license = fs.readFileSync(path.join(ROOT, 'LICENSE'), 'utf8');
+  assert.match(license, /^MIT License/);
+  assert.equal(read('.claude-plugin/plugin.json').license, 'MIT');
+  assert.equal(read('package.json').license, 'MIT');
+});
+
+test('template settings enable this plugin from this marketplace', () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(ROOT, 'skills/team-project-setup/templates/.claude/settings.json'), 'utf8'));
+  const market = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/marketplace.json'), 'utf8')).name;
+  assert.ok(settings.extraKnownMarketplaces[market], `template must register marketplace "${market}"`);
+  assert.equal(settings.enabledPlugins[`claude-team-kit@${market}`], true);
+});

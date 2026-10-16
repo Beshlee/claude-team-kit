@@ -57,7 +57,10 @@ author's assumptions. Flow and risk table: [`docs/WORKFLOW.md`](docs/WORKFLOW.md
 | `Stop` | — | once per change set: ask for tests when source changed without tests, and for contract tests when a protected path changed |
 
 Hooks fail open on their own internal errors, so a hook bug never blocks
-work.
+work. If a hook gets in your way, start Claude Code with
+`CLAUDE_TEAM_KIT_DISABLE=1` (all hooks) or e.g.
+`CLAUDE_TEAM_KIT_DISABLE=guard,stop-gate` (only those) — and report the
+false positive so the rule can be fixed.
 
 ## CI template
 
@@ -95,7 +98,16 @@ Then, in a project:
 
 > Use the team-project-setup skill to set up this project.
 
+The project's committed `.claude/settings.json` then registers this
+marketplace and enables the plugin, so every teammate who opens the project
+in Claude Code is offered the kit automatically (they need read access to
+the kit's repository).
+
 Team usage guide: [`docs/TEAM_PLAYBOOK.md`](docs/TEAM_PLAYBOOK.md).
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Changes: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Development
 

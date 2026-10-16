@@ -34,29 +34,52 @@ const ASK_COMMANDS = [
 ];
 
 // ---------- 2. memory / knowledge deletion ----------
-const DELETE_VERB = /(^|[\s;&|(`])(rm|rmdir|rd|del|erase|unlink|shred|remove-item|ri|clear-content|clc|git\s+rm)(?=\s|$)/i;
-const TRUNCATE = /(^|[;&|]\s*|\s)(:\s*)?>\s*['"]?[^\s'"|;&>]+/;
-
-function knowledgeMarkers(config) {
-  return [
-    lib.toPosix(config.knowledgeDir).toLowerCase().replace(/\/+$/, ''),
-    '.claude/rules',
-    'claude.md',
-    'claude.local.md',
-    'memory.md',
-    '/memory/',
-  ];
-}
+// Matched per command segment against the command word and its path
+// arguments — never as substrings of the whole command line, so unrelated
+// paths such as src/memory/ or docs/knowledge-export.zip are not affected.
+const DELETE_CMD = /^(rm|rmdir|rd|del|erase|unlink|shred|remove-item|ri|clear-content|clc)$/i;
+const OVERWRITE_CMD = /^(set-content|sc|out-file)$/i;
+const REDIRECT_TARGET = /(^|[^>\d&])\d?>(?!>)\s*['"]?([^\s'"|;&>]+)/g;
 
 function isKnowledgePath(rel, config) {
   const p = lib.toPosix(rel).toLowerCase();
   const kd = lib.toPosix(config.knowledgeDir).toLowerCase().replace(/\/+$/, '');
   return (
-    p === kd || p.startsWith(kd + '/') || p.includes('/' + kd + '/') ||
-    p.startsWith('.claude/rules/') || p.includes('/.claude/rules/') ||
+    p === kd || p.startsWith(kd + '/') || p.includes('/' + kd + '/') || p.endsWith('/' + kd) ||
+    p === '.claude/rules' || p.startsWith('.claude/rules/') || p.includes('/.claude/rules/') || p.endsWith('/.claude/rules') ||
     /(^|\/)claude(\.local)?\.md$/.test(p) ||
-    /\/\.claude\/projects\/[^/]+\/memory\//.test(p)
+    /(^|\/)\.claude\/projects\/[^/]+\/memory(\/|$)/.test(p)
   );
+}
+
+// Knowledge files plus personal auto-memory (MEMORY.md and its directory).
+function isMemoryPath(word, config) {
+  const p = lib.toPosix(word).replace(/^~/, '').replace(/\/+$/, '').toLowerCase();
+  return Boolean(p) && (isKnowledgePath(p, config) || /(^|\/)memory\.md$/.test(p));
+}
+
+function memoryWriteFindings(norm, config) {
+  const out = [];
+  for (const segment of norm.split(/&&|\|\||[;|&\n]/)) {
+    let words = segment.trim().split(/\s+/).map((w) => w.replace(/^['"`(]+|['"`)]+$/g, '')).filter(Boolean);
+    if (words[0] === 'sudo') words = words.slice(1);
+    let args = null;
+    if (/^git$/i.test(words[0] || '') && /^rm$/i.test(words[1] || '')) args = words.slice(2);
+    else if (DELETE_CMD.test(words[0] || '')) args = words.slice(1);
+    const targets = (args || []).filter((w) => !w.startsWith('-') && isMemoryPath(w, config));
+    if (targets.length) {
+      out.push(['deny', `Blocked: this command deletes project/team memory (${targets.join(', ')}). ${ARCHIVE_HINT}`]);
+    }
+    if (OVERWRITE_CMD.test(words[0] || '') && words.slice(1).some((w) => !w.startsWith('-') && isMemoryPath(w, config))) {
+      out.push(['ask', `This command overwrites a memory/knowledge file from the shell, bypassing the shrink check. Prefer the Edit tool; if content is being removed, archive it first. ${ARCHIVE_HINT}`]);
+    }
+  }
+  for (const m of norm.matchAll(REDIRECT_TARGET)) {
+    if (isMemoryPath(m[2], config)) {
+      out.push(['deny', `Blocked: this redirect empties/overwrites a memory file (${m[2]}). Use ">>" to append, or the Edit tool. ${ARCHIVE_HINT}`]);
+    }
+  }
+  return out;
 }
 
 const ARCHIVE_HINT =
@@ -72,18 +95,7 @@ function checkShell(cmd, config) {
   for (const [re, why] of DENY_COMMANDS) if (re.test(cmd)) out.push(['deny', `Blocked: ${why}.`]);
   for (const [re, why] of ASK_COMMANDS) if (re.test(cmd)) out.push(['ask', `Confirm: ${why}.`]);
 
-  const lower = norm.toLowerCase();
-  const touchesKnowledge = knowledgeMarkers(config).some((m) => m && lower.includes(m));
-  if (touchesKnowledge) {
-    const truncates = TRUNCATE.test(norm) &&
-      knowledgeMarkers(config).some((m) => {
-        const after = lower.split('>').slice(1).join('>');
-        return m && after.includes(m);
-      });
-    if (DELETE_VERB.test(norm) || truncates) {
-      out.push(['deny', `Blocked: this command deletes or empties project/team memory. ${ARCHIVE_HINT}`]);
-    }
-  }
+  out.push(...memoryWriteFindings(norm, config));
 
   const readsSecret = cmd.split(/[;&|]+/).some((segment) => {
     const words = segment.trim().split(/\s+/).map((w) => w.replace(/^['"]|['"]$/g, ''));
@@ -294,7 +306,7 @@ function evaluate(input) {
 }
 
 if (require.main === module) {
-  lib.run((input) => {
+  lib.run('guard', (input) => {
     const result = evaluate(input);
     if (!result) return;
     lib.emit({

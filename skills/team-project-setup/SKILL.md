@@ -24,7 +24,11 @@ knowledge, rules, and guardrails. The templates are in this skill's
    - `.claude/rules/area-example.md` — only as a starting point; rename
      per sensitive area and set its `paths`, or drop it.
    - `.claude/settings.json` — merge the `permissions.deny` / `ask` lists
-     into any existing file.
+     and the `extraKnownMarketplaces` / `enabledPlugins` entries into any
+     existing file. The latter make Claude Code offer the kit to every
+     teammate who opens the project; if the team uses a fork or a private
+     mirror of the kit, change `repo` accordingly. Teammates need read
+     access to that repository.
    - `.claude/guardrails.json` — set `sourceGlobs` / `testGlobs` to the
      project's real layout, and `protectedPaths` to the modules the team
      names as stable (ask; do not invent them).

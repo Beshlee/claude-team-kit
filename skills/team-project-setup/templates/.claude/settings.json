@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "claude-team-kit-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "Beshlee/claude-team-kit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "claude-team-kit@claude-team-kit-marketplace": true
+  },
   "permissions": {
     "deny": [
       "Read(./.env)",

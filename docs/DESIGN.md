@@ -73,12 +73,19 @@ Instructions can be forgotten; hooks run every time. All hooks are Node.js
 (cross-platform, no dependencies), read the standard hook JSON on stdin,
 and exit 0 on their own errors (fail-open) so a hook bug never blocks work.
 
+**Kill switch.** `CLAUDE_TEAM_KIT_DISABLE=1` (or `true` / `all`) in the
+environment Claude Code starts from turns every hook off; a comma list —
+`guard`, `session-context`, `stop-gate` — turns off only those. It exists so
+a false positive never leaves someone unable to work; the false positive
+should still be reported and fixed.
+
 ### `hooks/guard.js` — PreToolUse (`Bash|PowerShell|Read|Write|Edit|MultiEdit|NotebookEdit`)
 
 | Check | Decision |
 |---|---|
 | `rm -rf /`, drive-root delete, `curl … \| sh`, disk format, force-push to main/master/release/prod | deny |
-| delete/truncate of memory or knowledge files | deny |
+| delete (`rm`, `git rm`, `Remove-Item`, …) or `>` truncation of memory or knowledge files — matched on the command's path arguments, so `src/memory/` or `docs/knowledge-export.zip` are unaffected; `>>` append is allowed | deny |
+| `Set-Content` / `Out-File` overwriting a memory or knowledge file from the shell | ask |
 | reading `.env*` (not `.env.example`), `*.pem`, `*.key`, `id_rsa`, … | deny |
 | AWS / GitHub / GitLab / Slack / Google / Stripe / Anthropic / OpenAI keys, private-key blocks, URLs with passwords in written content | deny |
 | `password = "…"`-style hardcoded credentials (placeholders ignored) | ask |
